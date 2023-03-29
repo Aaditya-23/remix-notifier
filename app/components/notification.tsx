@@ -1,13 +1,11 @@
-import { Prisma } from '@prisma/client';
+import type { Notification as PrismaNotification } from '@prisma/client';
 import formatDate from '~/utils/formatDate';
 
+const userImageUrl =
+  'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=687&q=80';
+
 export default function Notification(props: Props) {
-  const {
-    seen,
-    text,
-    createdAt,
-    user: { userImageUrl },
-  } = props.notification;
+  const { seen, text, createdAt } = props.notification;
 
   return (
     <li className='p-2 flex gap-3'>
@@ -28,16 +26,6 @@ export default function Notification(props: Props) {
   );
 }
 
-const notificationsWithUser = Prisma.validator<Prisma.NotificationArgs>()({
-  include: {
-    user: true,
-  },
-});
-
-type NotificationsWithUser = Prisma.NotificationGetPayload<
-  typeof notificationsWithUser
->;
-
 type Props = {
-  notification: NotificationsWithUser;
+  notification: PrismaNotification;
 };

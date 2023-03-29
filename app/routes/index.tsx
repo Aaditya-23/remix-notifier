@@ -1,98 +1,102 @@
-import { Navbar, Notification } from '~/components';
+import { Navbar, Pannel } from '~/components';
 import { Popover } from '@headlessui/react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { HiOutlineBell } from 'react-icons/hi';
-import { BsLightningCharge } from 'react-icons/bs';
-import { fetchNotifications } from '~/server/db';
+import {
+  addNotification,
+  clearNotifications,
+  fetchNotifications,
+  readNotifications,
+} from '~/server/db';
+import { HiLightningBolt } from 'react-icons/hi';
 import { typedjson } from 'remix-typedjson';
-import { useTypedLoaderData } from 'remix-typedjson/dist/remix';
+import { useTypedLoaderData } from 'remix-typedjson';
+import { json } from '@remix-run/node';
+import type { ActionArgs } from '@remix-run/node';
+import { actionSchema } from '~/server/schema';
+import type { ShouldRevalidateFunction } from '@remix-run/react';
+import { useSubmit } from '@remix-run/react';
 
 export async function loader() {
-  const notifications = await fetchNotifications();
-
-  return typedjson(notifications);
+  const data = await fetchNotifications();
+  return typedjson(data);
 }
 
 export default function Index() {
-  const notifications = useTypedLoaderData<typeof loader>();
+  const { notifications, unreadNotificationsCount } =
+    useTypedLoaderData<typeof loader>();
+  const submit = useSubmit();
 
-  const variants = {
-    hidden: {
-      scale: 0,
-      x: '-50%',
-    },
-    active: {
-      scale: 1,
-      transformOrigin: 'center 0',
-    },
-  };
+  function addNotification() {
+    submit({ _action: 'add-notification' }, { method: 'post' });
+  }
+
+  function readNotifications(open: boolean) {
+    if (!open) submit({ _action: 'read-notifications' }, { method: 'post' });
+  }
 
   return (
     <div className='w-full min-h-screen bg-gradient-to-r from-[#8a2387] via-[#e94057] to-[#f27121]'>
       <Navbar />
 
-      <Popover className='mx-auto mt-10 w-max relative'>
-        {({ open }) => (
-          <>
-            <Popover.Button className='p-1 bg-white rounded outline-none focus:outline-white'>
-              <HiOutlineBell size='1.5em' />
-            </Popover.Button>
+      <div className='mx-auto mt-10 w-max flex gap-4'>
+        <Popover className='relative'>
+          {({ open }) => (
+            <>
+              <Popover.Button
+                onClick={() => readNotifications(open)}
+                className='p-1 relative bg-white rounded outline-none focus:outline-white'
+              >
+                <HiOutlineBell size='1.5em' />
+                <span className='p-px w-5 aspect-square absolute -bottom-2 -right-3 text-xs font-semibold text-white bg-red-400 rounded-full'>
+                  {unreadNotificationsCount}
+                </span>
+              </Popover.Button>
 
-            <AnimatePresence mode='wait'>
-              {true && (
-                <Popover.Panel
-                  static
-                  as={motion.div}
-                  key={open ? 1 : 0}
-                  variants={variants}
-                  initial='hidden'
-                  animate='active'
-                  exit='hidden'
-                  className='mt-2 px-1 py-2 w-[80vw] absolute left-1/2 space-y-4 bg-white rounded shadow'
-                >
-                  <Header />
+              <AnimatePresence mode='wait'>
+                {open && <Pannel notifications={notifications} open={open} />}
+              </AnimatePresence>
+            </>
+          )}
+        </Popover>
 
-                  <ul className='divide-y'>
-                    {notifications.map((notification, index) => (
-                      <Notification notification={notification} key={index} />
-                    ))}
-                  </ul>
-
-                  <Footer />
-                </Popover.Panel>
-              )}
-            </AnimatePresence>
-          </>
-        )}
-      </Popover>
+        <button
+          onClick={addNotification}
+          className='group relative p-1 bg-white rounded outline-none focus:outline-white'
+        >
+          <HiLightningBolt size='1.5em' />
+          <span className='p-2 -mt-2 absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-10  text-xs text-white font-medium bg-black/50 text-center capitalize rounded shadow-md scale-0 group-hover:scale-100 transition-transform '>
+            add notification
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
 
-function Header() {
-  return (
-    <header className='px-2 flex justify-between items-center gap-2'>
-      <h2 className='text-sm font-medium capitalize'>notifications</h2>
-      <button className='group relative'>
-        <BsLightningCharge />
-        <span className='p-2 -mt-2 absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-10  text-xs text-white font-medium bg-black/50 text-center capitalize rounded shadow-md scale-0 group-hover:scale-100 transition-transform '>
-          add notification
-        </span>
-      </button>
-    </header>
-  );
-}
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  defaultShouldRevalidate,
+  formData,
+}) => {
+  const _action = formData?.get('_action');
+  if (_action === 'read-notifications') {
+    return false;
+  }
+  return defaultShouldRevalidate;
+};
 
-function Footer() {
-  return (
-    <footer className='px-2 flex justify-between gap-2'>
-      <button className='text-xs capitalize underline underline-offset-2 text-blue-500 font-medium'>
-        load more
-      </button>
-      <button className='text-xs capitalize underline underline-offset-2 text-blue-500 font-medium'>
-        clear
-      </button>
-    </footer>
-  );
+export async function action({ request }: ActionArgs) {
+  const formData = await request.formData();
+  const input = actionSchema.parse(Object.fromEntries(formData));
+
+  if (input._action === 'add-notification') {
+    await addNotification();
+  } else if (input._action === 'clear-notifications') {
+    await clearNotifications();
+  } else if (input._action === 'read-notifications') {
+    await readNotifications();
+  }
+
+  return json({ ok: true });
 }
 
