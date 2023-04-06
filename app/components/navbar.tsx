@@ -7,7 +7,7 @@ export default function Navbar() {
         remix-notifier
       </h1>
 
-      <a href='#' className='text-lg'>
+      <a href='https://github.com/Aaditya-23/remix-notifier' className='text-lg'>
         <AiOutlineGithub color='white' />
       </a>
     </nav>
