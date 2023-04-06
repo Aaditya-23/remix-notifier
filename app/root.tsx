@@ -9,8 +9,6 @@ import {
 } from '@remix-run/react';
 import tailwind from './tailwind.css';
 
-export const config = {runtime: 'edge'};
-
 export const meta: MetaFunction = () => ({
   charset: 'utf-8',
   title: 'New Remix App',
